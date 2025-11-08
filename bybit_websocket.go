@@ -45,8 +45,8 @@ func (b *WebSocket) monitorConnection() {
 		if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
 			fmt.Println("Attempting to reconnect...")
 			b.isExit = true
-			if b.exitCh != nil {
-				b.exitCh <- struct{}{}
+			if b.ExitCh != nil {
+				b.ExitCh <- struct{}{}
 			}
 			return
 			//con := b.Connect() // Example, adjust parameters as needed
@@ -82,7 +82,7 @@ type WebSocket struct {
 	cancel       context.CancelFunc
 	isConnected  bool
 	isExit       bool
-	exitCh       chan struct{}
+	ExitCh       chan struct{}
 }
 
 type WebsocketOption func(*WebSocket)
@@ -107,7 +107,7 @@ func NewBybitPrivateWebSocket(url, apiKey, apiSecret string, handler MessageHand
 		maxAliveTime: "",
 		pingInterval: 20,
 		onMessage:    handler,
-		exitCh:       make(chan struct{}),
+		ExitCh:       make(chan struct{}),
 	}
 
 	// Apply the provided options
@@ -123,7 +123,7 @@ func NewBybitPublicWebSocket(url string, handler MessageHandler) *WebSocket {
 		url:          url,
 		pingInterval: 20, // default is 20 seconds
 		onMessage:    handler,
-		exitCh:       make(chan struct{}),
+		ExitCh:       make(chan struct{}),
 	}
 
 	return c
