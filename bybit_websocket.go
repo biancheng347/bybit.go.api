@@ -16,6 +16,9 @@ type MessageHandler func(message string) error
 
 func (b *WebSocket) handleIncomingMessages() {
 	for {
+		if b.isExit {
+			return
+		}
 		_, message, err := b.conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error reading:", err)
@@ -41,13 +44,18 @@ func (b *WebSocket) monitorConnection() {
 		<-ticker.C
 		if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
 			fmt.Println("Attempting to reconnect...")
-			con := b.Connect() // Example, adjust parameters as needed
-			if con == nil {
-				fmt.Println("Reconnection failed:")
-			} else {
-				b.isConnected = true
-				go b.handleIncomingMessages() // Restart message handling
+			b.isExit = true
+			if b.exitCh != nil {
+				b.exitCh <- struct{}{}
 			}
+			return
+			//con := b.Connect() // Example, adjust parameters as needed
+			//if con == nil {
+			//	fmt.Println("Reconnection failed:")
+			//} else {
+			//	b.isConnected = true
+			//	go b.handleIncomingMessages() // Restart message handling
+			//}
 		}
 
 		select {
@@ -73,6 +81,8 @@ type WebSocket struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	isConnected  bool
+	isExit       bool
+	exitCh       chan struct{}
 }
 
 type WebsocketOption func(*WebSocket)
@@ -97,6 +107,7 @@ func NewBybitPrivateWebSocket(url, apiKey, apiSecret string, handler MessageHand
 		maxAliveTime: "",
 		pingInterval: 20,
 		onMessage:    handler,
+		exitCh:       make(chan struct{}),
 	}
 
 	// Apply the provided options
@@ -112,6 +123,7 @@ func NewBybitPublicWebSocket(url string, handler MessageHandler) *WebSocket {
 		url:          url,
 		pingInterval: 20, // default is 20 seconds
 		onMessage:    handler,
+		exitCh:       make(chan struct{}),
 	}
 
 	return c
@@ -206,6 +218,9 @@ func ping(b *WebSocket) {
 	for {
 		select {
 		case <-ticker.C:
+			if b.isExit {
+				return
+			}
 			currentTime := time.Now().Unix()
 			pingMessage := map[string]string{
 				"op":     "ping",
@@ -230,6 +245,10 @@ func ping(b *WebSocket) {
 }
 
 func (b *WebSocket) Disconnect() error {
+	if b == nil {
+		return fmt.Errorf("websocket is nil")
+	}
+
 	b.cancel()
 	b.isConnected = false
 	return b.conn.Close()
