@@ -42,6 +42,10 @@ func (b *WebSocket) monitorConnection() {
 
 	for {
 		<-ticker.C
+		if b.isExit {
+			return
+		}
+
 		if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
 			fmt.Println("Attempting to reconnect...")
 			b.isExit = true
